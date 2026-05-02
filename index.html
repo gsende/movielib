@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Space - ספריית הסרטים שלי</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Heebo:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c1: #00f5d4;
+    --c2: #00bbf9;
+    --c3: #06d6a0;
+    --c4: #118ab2;
+    --c5: #073b4c;
+    --bg: #04111d;
+    --bg2: #081c2e;
+    --bg3: #0a2540;
+    --card: #0d2137;
+    --border: rgba(0,245,212,0.25);
+    --text: #e0f7fa;
+    --muted: #7ecdc8;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(0,245,212,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(0,187,249,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(6,214,160,0.03) 0%, transparent 50%);
+  }
+  .app { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ===== AUTH ===== */
+  .auth-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .auth-box {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 24px; padding: 44px 40px; width: 100%; max-width: 400px;
+    box-shadow: 0 0 80px rgba(0,245,212,0.08);
+  }
+  .auth-logo { text-align: center; margin-bottom: 36px; }
+  .auth-logo .title {
+    font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 3px;
+  }
+  .auth-logo .stars-deco { font-size: 28px; margin-bottom: 10px; display: block; }
+  .auth-logo .sub { font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .auth-tabs { display: flex; margin-bottom: 28px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .auth-tab {
+    flex: 1; padding: 12px; text-align: center; cursor: pointer;
+    font-size: 15px; font-weight: 600; transition: all 0.2s;
+    color: var(--muted); background: transparent; border: none; font-family: 'Heebo', sans-serif;
+  }
+  .auth-tab.active { background: rgba(0,245,212,0.15); color: var(--c1); }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; }
+  .field input {
+    width: 100%; padding: 13px 16px; border-radius: 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); font-size: 15px; font-family: 'Heebo', sans-serif;
+    transition: border-color 0.2s; outline: none;
+  }
+  .field input:focus { border-color: var(--c1); box-shadow: 0 0 0 3px rgba(0,245,212,0.08); }
+  .field input::placeholder { color: rgba(126,205,200,0.5); }
+  .btn-primary {
+    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    color: #04111d; font-size: 16px; font-weight: 700; font-family: 'Heebo', sans-serif;
+    cursor: pointer; transition: all 0.2s; margin-top: 4px;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,245,212,0.25); }
+  .btn-primary:active { transform: translateY(0); }
+  .auth-error {
+    color: var(--danger); font-size: 13px; margin-bottom: 14px; text-align: center;
+    background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2);
+    border-radius: 8px; padding: 8px;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 0 18px; border-bottom: 1px solid var(--border); margin-bottom: 28px;
+  }
+  .logo {
+    font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 2px;
+  }
+  .user-info { display: flex; align-items: center; gap: 10px; }
+  .user-badge {
+    background: rgba(0,245,212,0.1); border: 1px solid var(--border);
+    border-radius: 20px; padding: 7px 16px; font-size: 13px; color: var(--c1); font-weight: 600;
+  }
+  .btn-logout {
+    background: transparent; border: 1px solid rgba(255,107,107,0.4);
+    color: var(--danger); border-radius: 10px; padding: 7px 14px;
+    font-size: 13px; cursor: pointer; font-family: 'Heebo', sans-serif;
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { background: rgba(255,107,107,0.1); border-color: var(--danger); }
+
+  /* ===== NAV ===== */
+  .nav { display: flex; gap: 10px; margin-bottom: 32px; }
+  .nav-btn {
+    flex: 1; padding: 14px; border-radius: 14px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 15px; font-weight: 600;
+    font-family: 'Heebo', sans-serif; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .nav-btn.active {
+    background: rgba(0,245,212,0.1); border-color: var(--c1); color: var(--c1);
+    box-shadow: 0 0 20px rgba(0,245,212,0.08);
+  }
+  .nav-btn:hover:not(.active) { border-color: rgba(0,245,212,0.4); color: var(--text); }
+  .count-badge {
+    background: var(--c1); color: #04111d; border-radius: 20px;
+    padding: 2px 8px; font-size: 11px; font-weight: 700;
+  }
+
+  /* ===== SEARCH ===== */
+  .search-wrap { position: relative; margin-bottom: 32px; }
+  .search-wrap input {
+    width: 100%; padding: 16px 20px 16px 52px; border-radius: 16px;
+    background: var(--bg2); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; font-family: 'Heebo', sans-serif;
+    outline: none; transition: all 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--c1); box-shadow: 0 0 0 3px rgba(0,245,212,0.08); }
+  .search-wrap input::placeholder { color: rgba(126,205,200,0.5); }
+  .search-icon {
+    position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+    font-size: 20px; pointer-events: none;
+  }
+
+  /* ===== MOVIE GRID ===== */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 18px; }
+  .movie-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; transition: all 0.25s; cursor: default; position: relative;
+  }
+  .movie-card:hover { transform: translateY(-5px); border-color: rgba(0,245,212,0.5); box-shadow: 0 12px 40px rgba(0,245,212,0.12); }
+  .poster-wrap { position: relative; aspect-ratio: 2/3; overflow: hidden; background: var(--bg3); }
+  .poster-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s; }
+  .movie-card:hover .poster-wrap img { transform: scale(1.03); }
+  .poster-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center; font-size: 48px;
+  }
+  .watched-badge {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,245,212,0.92); color: #04111d;
+    border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 700;
+    backdrop-filter: blur(4px);
+  }
+  .card-body { padding: 12px 14px 14px; }
+  .card-title { font-size: 13px; font-weight: 600; line-height: 1.35; margin-bottom: 4px; }
+  .card-year { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  .where-tag {
+    display: inline-block; padding: 3px 9px; border-radius: 20px;
+    background: rgba(0,187,249,0.12); border: 1px solid rgba(0,187,249,0.3);
+    color: var(--c2); font-size: 10px; font-weight: 600; margin-bottom: 8px;
+  }
+  .card-actions { display: flex; gap: 6px; }
+  .btn-sm {
+    flex: 1; padding: 8px 6px; border-radius: 9px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 12px; font-weight: 600;
+    font-family: 'Heebo', sans-serif; cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .btn-sm.watched { background: rgba(0,245,212,0.12); border-color: var(--c1); color: var(--c1); }
+  .btn-sm:hover { border-color: var(--c1); color: var(--c1); }
+
+  /* ===== WHERE MODAL ===== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(4,17,29,0.88);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 24px;
+    padding: 36px 32px; max-width: 360px; width: 100%;
+    box-shadow: 0 0 80px rgba(0,245,212,0.12);
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal .movie-name { color: var(--c1); font-size: 14px; margin-bottom: 28px; line-height: 1.4; }
+  .where-options { display: grid; gap: 10px; }
+  .where-btn {
+    padding: 16px 20px; border-radius: 14px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text); font-size: 15px; font-weight: 600;
+    font-family: 'Heebo', sans-serif; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 14px; text-align: right;
+  }
+  .where-btn:hover { background: rgba(0,245,212,0.1); border-color: var(--c1); color: var(--c1); transform: translateX(-2px); }
+  .where-btn .icon { font-size: 24px; flex-shrink: 0; }
+  .modal-cancel {
+    margin-top: 18px; width: 100%; padding: 12px; border-radius: 12px;
+    border: 1px solid rgba(255,107,107,0.25); background: transparent;
+    color: var(--muted); font-size: 14px; font-family: 'Heebo', sans-serif; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-cancel:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ===== STATES ===== */
+  .empty-state { text-align: center; padding: 80px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 70px; margin-bottom: 20px; display: block; }
+  .empty-state .title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .empty-state .sub { font-size: 14px; }
+  .section-title {
+    font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .loading { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 16px; }
+  .glow-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c1); margin-left: 10px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.6)} }
+
+  /* ===== LIBRARY STATS ===== */
+  .stats-bar {
+    display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .stat {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 18px; display: flex; align-items: center; gap: 10px;
+  }
+  .stat .num { font-size: 22px; font-weight: 700; color: var(--c1); font-family: 'Orbitron', monospace; }
+  .stat .label { font-size: 12px; color: var(--muted); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .header { flex-direction: column; gap: 14px; align-items: flex-start; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    .auth-box { padding: 32px 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>
+const {useState, useEffect, useRef} = React;
+const e = React.createElement;
+
+// ---- CONFIG ----
+const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJiODBkZWIzZWVhOTQ5YTM5MDNjNjUxNDI5OGY5NWQ3ZSIsIm5iZiI6MTc3NzczNTY0MS41MzcsInN1YiI6IjY5ZjYxN2Q5YmM2YTQ5YjgzZjAwYTllYyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.H075jmykxpXIRhmgj8Vwo0-hTEZzOItSFITT6LB3Iy0';
+const IMG_BASE = 'https://image.tmdb.org/t/p/w300';
+
+const WHERE_OPTIONS = [
+  {id: 'cinema',       label: 'בית קולנוע',      icon: '🎬'},
+  {id: 'home',         label: 'בבית',             icon: '🏠'},
+  {id: 'grandparents', label: 'אצל סבא וסבתא',   icon: '👴'},
+];
+
+// ---- STORAGE ----
+function getUsers()           { try { return JSON.parse(localStorage.getItem('ml_users') || '{}'); } catch { return {}; } }
+function saveUsers(u)         { localStorage.setItem('ml_users', JSON.stringify(u)); }
+function getUserData(username){ try { return JSON.parse(localStorage.getItem('ml_data_' + username) || '{}'); } catch { return {}; } }
+function saveUserData(u, d)   { localStorage.setItem('ml_data_' + u, JSON.stringify(d)); }
+function getSession()         { return localStorage.getItem('ml_session') || ''; }
+function setSession(u)        { localStorage.setItem('ml_session', u || ''); }
+
+// ---- AUTH SCREEN ----
+function AuthScreen({onLogin}) {
+  const [tab,  setTab]  = useState('login');
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err,  setErr]  = useState('');
+
+  function submit() {
+    setErr('');
+    if (!user.trim() || !pass.trim()) { setErr('יש למלא שם משתמש וסיסמה'); return; }
+    const users = getUsers();
+    if (tab === 'login') {
+      if (!users[user])         { setErr('שם המשתמש לא קיים'); return; }
+      if (users[user] !== pass) { setErr('סיסמה שגויה'); return; }
+    } else {
+      if (users[user]) { setErr('שם המשתמש כבר תפוס, בחר אחר'); return; }
+      if (pass.length < 4) { setErr('הסיסמה חייבת להכיל לפחות 4 תווים'); return; }
+      users[user] = pass; saveUsers(users);
+    }
+    setSession(user); onLogin(user);
+  }
+
+  return e('div', {className: 'auth-screen'},
+    e('div', {className: 'auth-box'},
+      e('div', {className: 'auth-logo'},
+        e('span', {className: 'stars-deco'}, '🌌'),
+        e('div', {className: 'title'}, 'MOVIE SPACE'),
+        e('div', {className: 'sub'}, 'ספריית הסרטים שלי ✨')
+      ),
+      e('div', {className: 'auth-tabs'},
+        e('button', {className: 'auth-tab' + (tab === 'login' ? ' active' : ''), onClick: () => { setTab('login'); setErr(''); }}, 'כניסה'),
+        e('button', {className: 'auth-tab' + (tab === 'register' ? ' active' : ''), onClick: () => { setTab('register'); setErr(''); }}, 'הרשמה חדשה')
+      ),
+      err && e('div', {className: 'auth-error'}, err),
+      e('div', {className: 'field'},
+        e('label', null, 'שם משתמש'),
+        e('input', {value: user, onChange: ev => setUser(ev.target.value), placeholder: 'הכנס שם משתמש', autoComplete: 'username'})
+      ),
+      e('div', {className: 'field'},
+        e('label', null, 'סיסמה'),
+        e('input', {
+          type: 'password', value: pass,
+          onChange: ev => setPass(ev.target.value),
+          placeholder: tab === 'register' ? 'לפחות 4 תווים' : 'הכנס סיסמה',
+          autoComplete: tab === 'login' ? 'current-password' : 'new-password',
+          onKeyDown: ev => ev.key === 'Enter' && submit()
+        })
+      ),
+      e('button', {className: 'btn-primary', onClick: submit},
+        tab === 'login' ? '🚀 כניסה' : '🌟 צור חשבון'
+      )
+    )
+  );
+}
+
+// ---- WHERE MODAL ----
+function WhereModal({movie, onSelect, onCancel}) {
+  return e('div', {className: 'modal-overlay', onClick: onCancel},
+    e('div', {className: 'modal', onClick: ev => ev.stopPropagation()},
+      e('h3', null, '📍 איפה צפית?'),
+      e('div', {className: 'movie-name'}, movie.title),
+      e('div', {className: 'where-options'},
+        WHERE_OPTIONS.map(w =>
+          e('button', {key: w.id, className: 'where-btn', onClick: () => onSelect(w.id)},
+            e('span', {className: 'icon'}, w.icon),
+            w.label
+          )
+        )
+      ),
+      e('button', {className: 'modal-cancel', onClick: onCancel}, 'ביטול')
+    )
+  );
+}
+
+// ---- MOVIE CARD ----
+function MovieCard({movie, watched, whereWatched, onToggle}) {
+  const [showModal, setShowModal] = useState(false);
+  const poster = movie.poster_path ? IMG_BASE + movie.poster_path : null;
+  const year = (movie.release_date || '').slice(0, 4);
+  const whereLabel = WHERE_OPTIONS.find(w => w.id === whereWatched);
+
+  function handleBtn() {
+    if (watched) { onToggle(movie, null); }
+    else { setShowModal(true); }
+  }
+
+  return e(React.Fragment, null,
+    e('div', {className: 'movie-card'},
+      e('div', {className: 'poster-wrap'},
+        poster
+          ? e('img', {src: poster, alt: movie.title, loading: 'lazy',
+              onError: ev => { ev.target.style.display='none'; }})
+          : e('div', {className: 'poster-placeholder'}, '🎬'),
+        watched && e('div', {className: 'watched-badge'}, '✓ נצפה')
+      ),
+      e('div', {className: 'card-body'},
+        whereLabel && e('div', {className: 'where-tag'}, whereLabel.icon + ' ' + whereLabel.label),
+        e('div', {className: 'card-title'}, movie.title),
+        year && e('div', {className: 'card-year'}, year),
+        e('div', {className: 'card-actions'},
+          e('button', {className: 'btn-sm' + (watched ? ' watched' : ''), onClick: handleBtn},
+            watched ? '✓ נצפה' : '+ סמן כנצפה'
+          )
+        )
+      )
+    ),
+    showModal && e(WhereModal, {
+      movie,
+      onSelect: where => { setShowModal(false); onToggle(movie, where); },
+      onCancel: () => setShowModal(false)
+    })
+  );
+}
+
+// ---- SEARCH PAGE ----
+function SearchPage({userData, onToggle}) {
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [apiError, setApiError] = useState(false);
+  const timerRef = useRef(null);
+
+  async function search(q) {
+    if (!q.trim()) { setResults([]); setSearched(false); return; }
+    setLoading(true); setSearched(true); setApiError(false);
+    try {
+      const headers = { 'Authorization': 'Bearer ' + TMDB_TOKEN, 'Content-Type': 'application/json' };
+      const langs = ['he', 'en', 'es'];
+      const all = await Promise.all(langs.map(lang =>
+        fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(q)}&language=${lang}&page=1`, {headers})
+          .then(r => r.json()).catch(() => ({results: []}))
+      ));
+      const seen = new Set();
+      const merged = [];
+      for (const res of all) {
+        for (const m of (res.results || [])) {
+          if (!seen.has(m.id)) { seen.add(m.id); merged.push(m); }
+        }
+      }
+      setResults(merged.slice(0, 24));
+    } catch(err) { console.error(err); setResults([]); }
+    setLoading(false);
+  }
+
+  function handleChange(ev) {
+    const val = ev.target.value;
+    setQuery(val);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => search(val), 600);
+  }
+
+  return e('div', null,
+    e('div', {className: 'search-wrap'},
+      e('span', {className: 'search-icon'}, '🔍'),
+      e('input', {
+        value: query, onChange: handleChange,
+        placeholder: 'חפש סרט... (עברית, English, Español)',
+        dir: 'auto', autoFocus: true
+      })
+    ),
+    apiError && e('div', {className: 'empty-state'},
+      e('span', {className: 'icon'}, '🔑'),
+      e('div', {className: 'title'}, 'נדרש TMDB API Key'),
+      e('div', {className: 'sub'}, e('span', null, 'הירשם בחינם ב-'), e('a', {href:'https://www.themoviedb.org', target:'_blank', style:{color:'var(--c1)'}}, 'themoviedb.org'),
+        e('span', null, ' וקבל API key, לאחר מכן עדכן את הקוד בשורת TMDB_KEY'))
+    ),
+    !searched && !apiError && e('div', {className: 'loading'}, '🎬 הקלד שם סרט כדי לחפש'),
+    loading && e('div', {className: 'loading'}, e('span', {className: 'glow-dot'}), 'מחפש סרטים...'),
+    !loading && searched && !apiError && results.length === 0 && e('div', {className: 'empty-state'},
+      e('span', {className: 'icon'}, '😕'),
+      e('div', {className: 'title'}, 'לא נמצאו תוצאות'),
+      e('div', {className: 'sub'}, 'נסה לחפש בשפה אחרת')
+    ),
+    !loading && results.length > 0 && e('div', {className: 'grid'},
+      results.map(m => e(MovieCard, {
+        key: m.id, movie: m,
+        watched: !!userData[m.id],
+        whereWatched: userData[m.id]?.where,
+        onToggle
+      }))
+    )
+  );
+}
+
+// ---- LIBRARY PAGE ----
+function LibraryPage({userData, onToggle}) {
+  const movies = Object.values(userData);
+
+  if (movies.length === 0) return e('div', {className: 'empty-state'},
+    e('span', {className: 'icon'}, '🚀'),
+    e('div', {className: 'title'}, 'הספריה שלך ריקה'),
+    e('div', {className: 'sub'}, 'חפש סרטים וסמן אותם כנצפו!')
+  );
+
+  const byWhere = {};
+  movies.forEach(m => {
+    const key = m.where || 'other';
+    if (!byWhere[key]) byWhere[key] = [];
+    byWhere[key].push(m);
+  });
+
+  const sections = [
+    {id: 'cinema',       label: '🎬 בית קולנוע'},
+    {id: 'home',         label: '🏠 בבית'},
+    {id: 'grandparents', label: '👴 אצל סבא וסבתא'},
+    {id: 'other',        label: '🎞️ אחר'},
+  ].filter(s => byWhere[s.id]);
+
+  return e('div', null,
+    e('div', {className: 'stats-bar'},
+      e('div', {className: 'stat'},
+        e('div', {className: 'num'}, movies.length),
+        e('div', {className: 'label'}, 'סרטים שצפיתי')
+      ),
+      WHERE_OPTIONS.filter(w => byWhere[w.id]).map(w =>
+        e('div', {key: w.id, className: 'stat'},
+          e('div', {className: 'num'}, byWhere[w.id].length),
+          e('div', {className: 'label'}, w.icon + ' ' + w.label)
+        )
+      )
+    ),
+    sections.map(sec =>
+      e('div', {key: sec.id, style: {marginBottom: '36px'}},
+        e('div', {className: 'section-title'}, sec.label),
+        e('div', {className: 'grid'},
+          byWhere[sec.id].map(m => e(MovieCard, {
+            key: m.id, movie: m,
+            watched: true,
+            whereWatched: m.where,
+            onToggle
+          }))
+        )
+      )
+    )
+  );
+}
+
+// ---- MAIN APP ----
+function App() {
+  const [user,     setUser]     = useState(() => getSession());
+  const [page,     setPage]     = useState('library');
+  const [userData, setUserData] = useState({});
+
+  useEffect(() => { if (user) setUserData(getUserData(user)); }, [user]);
+
+  function handleLogin(u)  { setUser(u); setPage('library'); setUserData(getUserData(u)); }
+  function handleLogout()  { setSession(''); setUser(''); setPage('library'); }
+
+  function handleToggle(movie, where) {
+    setUserData(prev => {
+      const next = {...prev};
+      if (where === null) {
+        delete next[movie.id];
+      } else {
+        next[movie.id] = {
+          id: movie.id, title: movie.title,
+          poster_path: movie.poster_path,
+          release_date: movie.release_date,
+          where
+        };
+      }
+      saveUserData(user, next);
+      return next;
+    });
+  }
+
+  if (!user) return e(AuthScreen, {onLogin: handleLogin});
+
+  const count = Object.keys(userData).length;
+
+  return e('div', {className: 'app'},
+    e('div', {className: 'header'},
+      e('div', {className: 'logo'}, '🌌 MOVIE SPACE'),
+      e('div', {className: 'user-info'},
+        e('div', {className: 'user-badge'}, '👤 ' + user),
+        e('button', {className: 'btn-logout', onClick: handleLogout}, 'יציאה')
+      )
+    ),
+    e('div', {className: 'nav'},
+      e('button', {
+        className: 'nav-btn' + (page === 'library' ? ' active' : ''),
+        onClick: () => setPage('library')
+      },
+        '📚 הספריה שלי',
+        count > 0 && e('span', {className: 'count-badge'}, count)
+      ),
+      e('button', {
+        className: 'nav-btn' + (page === 'search' ? ' active' : ''),
+        onClick: () => setPage('search')
+      }, '🔍 חיפוש סרטים')
+    ),
+    page === 'library' && e(LibraryPage, {userData, onToggle: handleToggle}),
+    page === 'search'  && e(SearchPage,  {userData, onToggle: handleToggle})
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script>
+</body>
+</html>
