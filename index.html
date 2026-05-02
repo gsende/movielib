@@ -270,6 +270,7 @@ const WHERE_OPTIONS = [
   {id: 'cinema',       label: 'בית קולנוע',      icon: '🎬'},
   {id: 'home',         label: 'בבית',             icon: '🏠'},
   {id: 'grandparents', label: 'אצל סבא וסבתא',   icon: '👴'},
+  {id: 'friend',       label: 'אצל חבר',          icon: '👫'},
 ];
 
 // ---- STORAGE ----
@@ -486,6 +487,7 @@ function LibraryPage({userData, onToggle}) {
     {id: 'cinema',       label: '🎬 בית קולנוע'},
     {id: 'home',         label: '🏠 בבית'},
     {id: 'grandparents', label: '👴 אצל סבא וסבתא'},
+    {id: 'friend',       label: '👫 אצל חבר'},
     {id: 'other',        label: '🎞️ אחר'},
   ].filter(s => byWhere[s.id]);
 
