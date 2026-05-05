@@ -5,6 +5,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movie Space - ספריית הסרטים שלי</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Heebo:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDzSC1iKaQPKL-A4yyjIQG0jb9p5WojENk",
+    authDomain: "beeri-movies.firebaseapp.com",
+    projectId: "beeri-movies",
+    storageBucket: "beeri-movies.firebasestorage.app",
+    messagingSenderId: "451284750743",
+    appId: "1:451284750743:web:6663fc00999bb8ae24f4d2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // Expose Firebase helpers to window so React code can use them
+  window._fb = {
+    // Auth: users collection { username -> hashedPassword }
+    async getUsers() {
+      const snap = await getDoc(doc(db, 'meta', 'users'));
+      return snap.exists() ? snap.data() : {};
+    },
+    async saveUsers(users) {
+      await setDoc(doc(db, 'meta', 'users'), users);
+    },
+    // Per-user movie data
+    async getUserData(username) {
+      const snap = await getDoc(doc(db, 'userData', username));
+      return snap.exists() ? snap.data() : {};
+    },
+    async saveUserData(username, data) {
+      await setDoc(doc(db, 'userData', username), data);
+    },
+    // Leaderboard: all userData docs
+    async getAllUsers() {
+      const snap = await getDocs(collection(db, 'userData'));
+      const result = [];
+      snap.forEach(d => result.push({ username: d.id, data: d.data() }));
+      return result;
+    },
+    async getRecommendations() {
+      const snap = await getDocs(collection(db, 'recommendations'));
+      const result = [];
+      snap.forEach(d => result.push({id: d.id, ...d.data()}));
+      return result.sort((a,b) => (b.ts||0)-(a.ts||0));
+    },
+    async saveRecommendation(recId, data) {
+      await setDoc(doc(db, 'recommendations', recId), data);
+    },
+    async deleteRecommendation(recId) {
+      const {deleteDoc} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      await deleteDoc(doc(db, 'recommendations', recId));
+    }
+  };
+
+  // Signal that Firebase is ready
+  window._fbReady = true;
+  window.dispatchEvent(new Event('fbReady'));
+</script>
 <style>
   :root {
     --c1: #00f5d4;
@@ -282,6 +342,62 @@
   .lb-bar-wrap { width: 100%; background: var(--bg3); border-radius: 4px; height: 4px; margin-top: 8px; }
   .lb-bar { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--c1), var(--c2)); transition: width 0.6s ease; }
 
+  /* ===== RECOMMENDATIONS ===== */
+  .rec-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px; display: flex; gap: 14px; transition: all 0.2s;
+  }
+  .rec-card:hover { border-color: rgba(0,245,212,0.4); transform: translateX(-3px); }
+  .rec-poster {
+    width: 70px; height: 105px; border-radius: 10px; object-fit: cover;
+    flex-shrink: 0; background: var(--bg3);
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+  }
+  .rec-poster img { width: 70px; height: 105px; border-radius: 10px; object-fit: cover; }
+  .rec-body { flex: 1; min-width: 0; }
+  .rec-movie-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .rec-year { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .rec-note {
+    font-size: 13px; color: var(--text); background: rgba(0,245,212,0.05);
+    border-right: 3px solid var(--c1); padding: 6px 10px; border-radius: 0 8px 8px 0;
+    margin-bottom: 10px; line-height: 1.5;
+  }
+  .rec-by { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .rec-avatar-sm {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--c4), var(--c5));
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--c1);
+  }
+  .rec-grid { display: grid; gap: 12px; }
+  .btn-recommend {
+    flex: 1; padding: 8px 6px; border-radius: 9px; border: 1px solid rgba(255,200,0,0.3);
+    background: transparent; color: rgba(255,200,0,0.7); font-size: 12px; font-weight: 600;
+    font-family: 'Heebo', sans-serif; cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .btn-recommend.recommended { background: rgba(255,200,0,0.1); border-color: #ffc800; color: #ffc800; }
+  .btn-recommend:hover { border-color: #ffc800; color: #ffc800; }
+  .rec-modal-note {
+    width: 100%; padding: 10px 14px; border-radius: 10px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); font-size: 14px; font-family: 'Heebo', sans-serif;
+    outline: none; resize: none; transition: border-color 0.2s; margin-bottom: 16px;
+    direction: rtl;
+  }
+  .rec-modal-note:focus { border-color: var(--c1); }
+
+  /* ===== SURPRISE ===== */
+  .surprise-btn {
+    width: 100%; padding: 16px; border-radius: 16px; border: 1px dashed rgba(255,200,0,0.5);
+    background: rgba(255,200,0,0.05); color: #ffc800; font-size: 16px; font-weight: 700;
+    font-family: 'Heebo', sans-serif; cursor: pointer; transition: all 0.25s;
+    margin-bottom: 28px; display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .surprise-btn:hover { background: rgba(255,200,0,0.1); border-color: #ffc800; transform: scale(1.01); box-shadow: 0 0 20px rgba(255,200,0,0.1); }
+  .surprise-btn:active { transform: scale(0.99); }
+  .surprise-section { margin-bottom: 36px; }
+  .surprise-section .section-title { color: #ffc800; }
+
   @media (max-width: 600px) {
     .header { flex-direction: column; gap: 14px; align-items: flex-start; }
     .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
@@ -310,13 +426,13 @@ const WHERE_OPTIONS = [
   {id: 'friend',       label: 'אצל חבר',          icon: '👫'},
 ];
 
-// ---- STORAGE ----
-function getUsers()           { try { return JSON.parse(localStorage.getItem('ml_users') || '{}'); } catch { return {}; } }
-function saveUsers(u)         { localStorage.setItem('ml_users', JSON.stringify(u)); }
-function getUserData(username){ try { return JSON.parse(localStorage.getItem('ml_data_' + username) || '{}'); } catch { return {}; } }
-function saveUserData(u, d)   { localStorage.setItem('ml_data_' + u, JSON.stringify(d)); }
-function getSession()         { return localStorage.getItem('ml_session') || ''; }
-function setSession(u)        { localStorage.setItem('ml_session', u || ''); }
+// ---- STORAGE (Firebase) ----
+async function getUsers()            { return window._fb ? window._fb.getUsers() : {}; }
+async function saveUsers(u)          { if (window._fb) await window._fb.saveUsers(u); }
+async function getUserData(username) { return window._fb ? window._fb.getUserData(username) : {}; }
+async function saveUserData(u, d)    { if (window._fb) await window._fb.saveUserData(u, d); }
+function getSession()                { return localStorage.getItem('ml_session') || ''; }
+function setSession(u)               { localStorage.setItem('ml_session', u || ''); }
 
 // ---- AUTH SCREEN ----
 function AuthScreen({onLogin}) {
@@ -325,19 +441,23 @@ function AuthScreen({onLogin}) {
   const [pass, setPass] = useState('');
   const [err,  setErr]  = useState('');
 
-  function submit() {
+  async function submit() {
     setErr('');
     if (!user.trim() || !pass.trim()) { setErr('יש למלא שם משתמש וסיסמה'); return; }
-    const users = getUsers();
-    if (tab === 'login') {
-      if (!users[user])         { setErr('שם המשתמש לא קיים'); return; }
-      if (users[user] !== pass) { setErr('סיסמה שגויה'); return; }
-    } else {
-      if (users[user]) { setErr('שם המשתמש כבר תפוס, בחר אחר'); return; }
-      if (pass.length < 4) { setErr('הסיסמה חייבת להכיל לפחות 4 תווים'); return; }
-      users[user] = pass; saveUsers(users);
-    }
-    setSession(user); onLogin(user);
+    setErr('⏳ מתחבר...');
+    try {
+      const users = await getUsers();
+      if (tab === 'login') {
+        if (!users[user])         { setErr('שם המשתמש לא קיים'); return; }
+        if (users[user] !== pass) { setErr('סיסמה שגויה'); return; }
+      } else {
+        if (users[user]) { setErr('שם המשתמש כבר תפוס, בחר אחר'); return; }
+        if (pass.length < 4) { setErr('הסיסמה חייבת להכיל לפחות 4 תווים'); return; }
+        users[user] = pass;
+        await saveUsers(users);
+      }
+      setSession(user); onLogin(user);
+    } catch(e) { setErr('שגיאת חיבור, נסה שוב'); }
   }
 
   return e('div', {className: 'auth-screen'},
@@ -393,7 +513,7 @@ function WhereModal({movie, onSelect, onCancel}) {
 }
 
 // ---- MOVIE CARD ----
-function MovieCard({movie, watched, whereWatched, onToggle}) {
+function MovieCard({movie, watched, whereWatched, onToggle, onRecommend, isRecommended}) {
   const [showModal, setShowModal] = useState(false);
   const poster = movie.poster_path ? IMG_BASE + movie.poster_path : null;
   const year = (movie.release_date || '').slice(0, 4);
@@ -402,6 +522,12 @@ function MovieCard({movie, watched, whereWatched, onToggle}) {
   function handleBtn() {
     if (watched) { onToggle(movie, null); }
     else { setShowModal(true); }
+  }
+
+  const [showRecModal, setShowRecModal] = useState(false);
+  function handleRecommend() {
+    if (isRecommended) return;
+    setShowRecModal(true);
   }
 
   return e(React.Fragment, null,
@@ -420,6 +546,9 @@ function MovieCard({movie, watched, whereWatched, onToggle}) {
         e('div', {className: 'card-actions'},
           e('button', {className: 'btn-sm' + (watched ? ' watched' : ''), onClick: handleBtn},
             watched ? '✓ נצפה' : '+ סמן כנצפה'
+          ),
+          e('button', {className: 'btn-recommend' + (isRecommended ? ' recommended' : ''), onClick: handleRecommend},
+            isRecommended ? '⭐ מומלץ' : '⭐ המלץ'
           )
         )
       )
@@ -428,12 +557,17 @@ function MovieCard({movie, watched, whereWatched, onToggle}) {
       movie,
       onSelect: where => { setShowModal(false); onToggle(movie, where); },
       onCancel: () => setShowModal(false)
+    }),
+    showRecModal && e(RecommendModal, {
+      movie,
+      onSave: note => { setShowRecModal(false); onRecommend && onRecommend(movie, note); },
+      onCancel: () => setShowRecModal(false)
     })
   );
 }
 
 // ---- SEARCH PAGE ----
-function SearchPage({userData, onToggle}) {
+function SearchPage({userData, onToggle, onRecommend, recs, currentUser}) {
   const [query,    setQuery]    = useState('');
   const [results,  setResults]  = useState([]);
   const [loading,  setLoading]  = useState(false);
@@ -504,13 +638,79 @@ function SearchPage({userData, onToggle}) {
 }
 
 // ---- LIBRARY PAGE ----
-function LibraryPage({userData, onToggle}) {
+function LibraryPage({userData, onToggle, onRecommend, recs, currentUser}) {
+  const [surpriseMovies, setSurpriseMovies] = useState([]);
+  const [surpriseLoading, setSurpriseLoading] = useState(false);
+
+  async function handleSurprise() {
+    setSurpriseLoading(true);
+    try {
+      const headers = { 'Authorization': 'Bearer ' + TMDB_TOKEN };
+      const watchedMovies = Object.values(userData);
+
+      let candidates = [];
+
+      if (watchedMovies.length > 0) {
+        // Pick up to 3 random watched movies and fetch similar for each
+        const sample = watchedMovies.sort(() => Math.random() - 0.5).slice(0, 6);
+        const results = await Promise.all(sample.map(m =>
+          fetch(`https://api.themoviedb.org/3/movie/${m.id}/similar?language=he&page=1`, {headers})
+            .then(r => r.json()).catch(() => ({results:[]}))
+        ));
+        // Also fetch recommendations from TMDB for each
+        const recs = await Promise.all(sample.map(m =>
+          fetch(`https://api.themoviedb.org/3/movie/${m.id}/recommendations?language=he&page=1`, {headers})
+            .then(r => r.json()).catch(() => ({results:[]}))
+        ));
+        for (const res of [...results, ...recs]) {
+          candidates.push(...(res.results || []));
+        }
+      } else {
+        // No watched movies — fall back to popular
+        const page = Math.floor(Math.random() * 10) + 1;
+        const res = await fetch(`https://api.themoviedb.org/3/movie/popular?language=he&page=${page}`, {headers}).then(r => r.json());
+        candidates = res.results || [];
+      }
+
+      // Remove already watched, deduplicate, shuffle, take 6
+      const watchedIds = new Set(Object.keys(userData).map(Number));
+      const seen = new Set();
+      const filtered = candidates.filter(m => {
+        if (watchedIds.has(m.id) || seen.has(m.id) || !m.poster_path) return false;
+        seen.add(m.id);
+        return true;
+      });
+      setSurpriseMovies(filtered.sort(() => Math.random() - 0.5).slice(0, 6));
+    } catch(e) { console.error(e); }
+    setSurpriseLoading(false);
+  }
   const movies = Object.values(userData);
 
-  if (movies.length === 0) return e('div', {className: 'empty-state'},
-    e('span', {className: 'icon'}, '🚀'),
-    e('div', {className: 'title'}, 'הספריה שלך ריקה'),
-    e('div', {className: 'sub'}, 'חפש סרטים וסמן אותם כנצפו!')
+  const surpriseSection = e('div', {className: 'surprise-section'},
+    e('button', {className: 'surprise-btn', onClick: handleSurprise, disabled: surpriseLoading},
+      surpriseLoading ? '⏳ מחפש...' : '🎲 הפתע אותי — המלץ לי על סרט!'
+    ),
+    surpriseMovies.length > 0 && e('div', null,
+      e('div', {className: 'section-title'}, '🎲 אולי תאהב את אלה?'),
+      e('div', {className: 'grid'},
+        surpriseMovies.map(m => e(MovieCard, {
+          key: m.id, movie: m,
+          watched: !!userData[m.id],
+          whereWatched: userData[m.id]?.where,
+          onToggle, onRecommend,
+          isRecommended: recs.some(r => r.id === currentUser + '_' + m.id)
+        }))
+      )
+    )
+  );
+
+  if (movies.length === 0) return e('div', null,
+    surpriseSection,
+    e('div', {className: 'empty-state'},
+      e('span', {className: 'icon'}, '🚀'),
+      e('div', {className: 'title'}, 'הספריה שלך ריקה'),
+      e('div', {className: 'sub'}, 'חפש סרטים וסמן אותם כנצפו!')
+    )
   );
 
   const byWhere = {};
@@ -529,6 +729,7 @@ function LibraryPage({userData, onToggle}) {
   ].filter(s => byWhere[s.id]);
 
   return e('div', null,
+    surpriseSection,
     e('div', {className: 'stats-bar'},
       e('div', {className: 'stat'},
         e('div', {className: 'num'}, movies.length),
@@ -557,15 +758,96 @@ function LibraryPage({userData, onToggle}) {
   );
 }
 
+// ---- RECOMMEND MODAL ----
+function RecommendModal({movie, onSave, onCancel}) {
+  const [note, setNote] = useState('');
+  return e('div', {className: 'modal-overlay', onClick: onCancel},
+    e('div', {className: 'modal', onClick: ev => ev.stopPropagation()},
+      e('h3', null, '⭐ המלץ על סרט'),
+      e('div', {className: 'movie-name'}, movie.title),
+      e('textarea', {
+        className: 'rec-modal-note', rows: 3,
+        placeholder: 'למה כדאי לראות? (אופציונלי)',
+        value: note, onChange: ev => setNote(ev.target.value),
+        maxLength: 200
+      }),
+      e('button', {className: 'btn-primary', onClick: () => onSave(note)}, '⭐ שלח המלצה'),
+      e('button', {className: 'modal-cancel', onClick: onCancel}, 'ביטול')
+    )
+  );
+}
+
+// ---- RECOMMENDATIONS PAGE ----
+function RecommendationsPage({currentUser}) {
+  const [recs, setRecs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!window._fb) return;
+    window._fb.getRecommendations().then(data => {
+      setRecs(data); setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  async function handleDelete(recId) {
+    await window._fb.deleteRecommendation(recId);
+    setRecs(prev => prev.filter(r => r.id !== recId));
+  }
+
+  if (loading) return e('div', {className: 'loading'}, e('span', {className: 'glow-dot'}), 'טוען המלצות...');
+  if (recs.length === 0) return e('div', {className: 'empty-state'},
+    e('span', {className: 'icon'}, '⭐'),
+    e('div', {className: 'title'}, 'אין עדיין המלצות'),
+    e('div', {className: 'sub'}, 'חפש סרט ולחץ "המלץ"!')
+  );
+
+  return e('div', null,
+    e('div', {style:{marginBottom:'20px',fontSize:'13px',color:'var(--muted)',fontWeight:600}},
+      recs.length + ' המלצות'),
+    e('div', {className: 'rec-grid'},
+      recs.map(rec =>
+        e('div', {key: rec.id, className: 'rec-card'},
+          rec.poster_path
+            ? e('div', {className:'rec-poster'}, e('img', {src: 'https://image.tmdb.org/t/p/w300'+rec.poster_path, alt: rec.title}))
+            : e('div', {className:'rec-poster'}, '🎬'),
+          e('div', {className: 'rec-body'},
+            e('div', {className: 'rec-movie-title'}, rec.title),
+            rec.release_date && e('div', {className: 'rec-year'}, rec.release_date.slice(0,4)),
+            rec.note && e('div', {className: 'rec-note'}, '💬 ' + rec.note),
+            e('div', {className: 'rec-by'},
+              e('span', {className: 'rec-avatar-sm'}, rec.by[0].toUpperCase()),
+              'המלצה של ' + rec.by,
+              rec.by === currentUser && e('button', {
+                onClick: () => handleDelete(rec.id),
+                style:{marginRight:'auto',background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:'12px'}
+              }, '🗑️ מחק')
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
 // ---- LEADERBOARD PAGE ----
 function LeaderboardPage({currentUser}) {
-  const users = getUsers();
-  const rows = Object.keys(users).map(username => {
-    const data = getUserData(username);
-    return { username, count: Object.keys(data).length };
-  }).sort((a, b) => b.count - a.count);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const maxCount = rows[0]?.count || 1;
+  useEffect(() => {
+    if (!window._fb) return;
+    window._fb.getAllUsers().then(all => {
+      const sorted = all
+        .map(({username, data}) => ({username, count: Object.keys(data).length}))
+        .sort((a, b) => b.count - a.count);
+      setRows(sorted);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return e('div', {className: 'loading'}, e('span', {className: 'glow-dot'}), 'טוען נתונים...');
+
+  const maxCount = rows.length > 0 ? (rows[0]?.count || 1) : 1;
 
   function rankStyle(i) {
     if (i === 0) return 'gold';
@@ -580,7 +862,7 @@ function LeaderboardPage({currentUser}) {
     return i + 1;
   }
 
-  if (rows.length === 0) return e('div', {className: 'empty-state'},
+  if (!loading && rows.length === 0) return e('div', {className: 'empty-state'},
     e('span', {className: 'icon'}, '🏆'),
     e('div', {className: 'title'}, 'אין עדיין משתמשים'),
     e('div', {className: 'sub'}, 'היה הראשון!')
@@ -621,17 +903,43 @@ function App() {
   const [page,     setPage]     = useState('library');
   const [userData, setUserData] = useState({});
 
-  useEffect(() => { if (user) setUserData(getUserData(user)); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    getUserData(user).then(d => setUserData(d || {}));
+  }, [user]);
 
-  function handleLogin(u)  { setUser(u); setPage('library'); setUserData(getUserData(u)); }
+  function handleLogin(u) {
+    setUser(u);
+    setPage('library');
+    getUserData(u).then(d => setUserData(d || {}));
+  }
   function handleLogout()  { setSession(''); setUser(''); setPage('library'); }
+
+  const [recs, setRecs] = useState([]);
+
+  useEffect(() => {
+    if (!window._fb) return;
+    window._fb.getRecommendations().then(data => setRecs(data)).catch(()=>{});
+  }, []);
+
+  async function handleRecommend(movie, note) {
+    const recId = user + '_' + movie.id;
+    const data = {
+      title: movie.title, poster_path: movie.poster_path || null,
+      release_date: movie.release_date || '', note, by: user, ts: Date.now()
+    };
+    await window._fb.saveRecommendation(recId, data);
+    setRecs(prev => {
+      const next = prev.filter(r => r.id !== recId);
+      return [{id: recId, ...data}, ...next];
+    });
+  }
 
   function handleToggle(movie, where) {
     setUserData(prev => {
       const next = {...prev};
-      if (where === null) {
-        delete next[movie.id];
-      } else {
+      if (where === null) { delete next[movie.id]; }
+      else {
         next[movie.id] = {
           id: movie.id, title: movie.title,
           poster_path: movie.poster_path,
@@ -671,11 +979,16 @@ function App() {
       e('button', {
         className: 'nav-btn' + (page === 'leaderboard' ? ' active' : ''),
         onClick: () => setPage('leaderboard')
-      }, '🏆 לוח תהילה')
+      }, '🏆 לוח תהילה'),
+      e('button', {
+        className: 'nav-btn' + (page === 'recommendations' ? ' active' : ''),
+        onClick: () => setPage('recommendations')
+      }, '⭐ המלצות')
     ),
-    page === 'library' && e(LibraryPage, {userData, onToggle: handleToggle}),
-    page === 'search'  && e(SearchPage,  {userData, onToggle: handleToggle}),
-    page === 'leaderboard' && e(LeaderboardPage, {currentUser: user})
+    page === 'library' && e(LibraryPage, {userData, onToggle: handleToggle, onRecommend: handleRecommend, recs, currentUser: user}),
+    page === 'search'  && e(SearchPage,  {userData, onToggle: handleToggle, onRecommend: handleRecommend, recs, currentUser: user}),
+    page === 'leaderboard' && e(LeaderboardPage, {currentUser: user}),
+    page === 'recommendations' && e(RecommendationsPage, {currentUser: user})
   );
 }
 
